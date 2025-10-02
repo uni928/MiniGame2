@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>素数を足して合計ちょうど当てゲーム</title>
+  <style>
+    :root {
+      --bg: #0f172a; /* slate-900 */
+      --panel: #111827ee; /* gray-900 */
+      --text: #e5e7eb; /* gray-200 */
+      --muted: #9ca3af; /* gray-400 */
+      --accent: #22d3ee; /* cyan-400 */
+      --accent-2: #34d399; /* emerald-400 */
+      --danger: #f87171; /* red-400 */
+      --warn: #fbbf24; /* amber-400 */
+    }
+    html, body { height: 100%; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Noto Sans JP, sans-serif;
+      background: radial-gradient(1200px 700px at 10% 0%, #0b1026, #050817 60%, #020617);
+      color: var(--text);
+      display: grid; place-items: center; padding: 16px;
+    }
+    .app {
+      width: min(980px, 100%);
+      display: grid;
+      gap: 16px;
+    }
+    .card {
+      background: linear-gradient(180deg, #0b122e, #0a0f26);
+      border: 1px solid #1f2937; /* gray-800 */
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 10px 30px #0006, inset 0 1px 0 #ffffff10;
+    }
+    .title {
+      font-size: clamp(18px, 2.6vw, 28px);
+      letter-spacing: 0.02em;
+      font-weight: 700;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .badge {
+      font-size: 12px; color: #0b122e; background: var(--accent);
+      padding: 4px 8px; border-radius: 999px; font-weight: 700;
+    }
+    .grid {
+      display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0,1fr));
+    }
+    .stat {
+      display: grid; gap: 6px; align-content: start;
+    }
+    .stat .label { color: var(--muted); font-size: 12px; letter-spacing: .04em; }
+    .stat .value { font-size: clamp(22px, 3vw, 34px); font-weight: 800; }
+    .timer { font-variant-numeric: tabular-nums; }
+
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+    .prime-board {
+      display: grid; gap: 10px; grid-template-columns: repeat(5, minmax(0,1fr));
+    }
+    .prime-btn {
+      appearance: none; border: 1px solid #1f2937; background: #0b122e; color: var(--text);
+      border-radius: 12px; padding: 14px 10px; font-size: clamp(16px, 2.5vw, 18px); font-weight: 800;
+      cursor: pointer; position: relative; transition: transform .04s ease, background .2s ease, border-color .2s ease;
+      box-shadow: 0 6px 20px #0008, inset 0 1px 0 #ffffff10;
+    }
+    .prime-btn.active {
+      background: linear-gradient(180deg, #063a3d, #052f33);
+      border-color: #064e3b; outline: 2px solid #10b98155; /* emerald */
+    }
+    .prime-btn:active { transform: translateY(1px) scale(.99); }
+
+    .controls button {
+      appearance: none; border: 1px solid #1f2937; background: #0b122e; color: var(--text);
+      border-radius: 12px; padding: 10px 14px; font-weight: 700; cursor: pointer;
+      transition: background .2s ease, border-color .2s ease, transform .04s ease;
+    }
+    .controls button:hover { background: #0e1636; }
+    .controls button:active { transform: translateY(1px); }
+    .controls .ok { background: #052f33; border-color: #064e3b; }
+    .controls .warn { background: #3a2a05; border-color: #b45309; }
+    .controls .danger { background: #3a0d0d; border-color: #7f1d1d; }
+
+    .log {
+      max-height: 200px; overflow: auto; font-size: 13px;
+      background: #060a1c; border: 1px solid #1f2937; border-radius: 12px; padding: 8px 10px;
+    }
+    .hint { color: var(--muted); font-size: 12px; }
+    .status { font-weight: 700; }
+    .correct { color: var(--accent-2); }
+    .over { color: var(--warn); }
+
+    .divider { height: 1px; background: #1f2937; margin: 8px 0; }
+
+    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="card">
+      <div class="title">素数を足して合計ちょうど当てゲーム <span class="badge">10 問</span></div>
+      <div class="grid" style="margin-top: 12px;">
+        <div class="stat">
+          <div class="label">ラウンド</div>
+          <div class="value" id="round">1 / 10</div>
+        </div>
+        <div class="stat">
+          <div class="label">目標値</div>
+          <div class="value" id="target">—</div>
+        </div>
+        <div class="stat">
+          <div class="label">現在の合計</div>
+          <div class="value" id="current">0</div>
+        </div>
+        <div class="stat">
+          <div class="label">タイマー</div>
+          <div class="value timer" id="timer">00:00.000</div>
+        </div>
+      </div>
+      <div class="row" style="justify-content: space-between; margin-top: 8px;">
+        <div class="status" id="status">1問目は、最初の数字ボタンを押した瞬間に計測開始します。</div>
+        <div class="hint">ヒント: ボタンは切替式。選択中の素数の <b>合計</b> が現在値です。</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;">
+        <div class="title" style="font-size:18px;font-weight:800;">素数ボード（5 から始まる連続の 10 個）</div>
+        <div class="row controls">
+          <button id="clearBtn" title="すべて解除">全解除</button>
+          <button id="retryBtn" class="warn" title="同じ目標でやり直し">やり直し</button>
+          <button id="nextBtn" class="ok" title="次の問題" disabled>次へ ▶</button>
+        </div>
+      </div>
+      <div class="prime-board" id="board"></div>
+    </div>
+
+    <div class="card">
+      <div class="title" style="font-size:18px;">記録</div>
+      <div class="log" id="log"></div>
+      <div class="divider"></div>
+      <div class="row" style="justify-content: space-between;">
+        <div>各問は「かかった時間」でスコア化（速いほど高得点）。10問終了後、<b>中央値</b>が最終得点です。</div>
+        <div id="final" style="font-weight:800;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ====== 設定 ======
+    const PRIMES = [5, 7, 11, 13, 17, 19, 23, 29, 31, 37];
+    const TOTAL_ROUNDS = 10;
+    const MIN_USE = 5; // 目標値生成で使う最小個数
+    const MAX_USE = 8; // 目標値生成で使う最大個数
+
+    // スコア計算: 5秒で100点、60秒で0点の線形（範囲外は丸め）
+    function timeToScore(ms){
+      const s = ms / 1000;
+      if (s <= 5) return 100;
+      if (s >= 60) return 0;
+      return Math.round(100 * (60 - s) / 55);
+    }
+
+    // ====== 状態 ======
+    let round = 1;
+    let target = 0;
+    let active = new Set(); // 有効化されている素数の index 集合
+    let running = false; // タイマー稼働中
+    let startTime = 0;
+    let rafId = 0;
+    let results = []; // { round, ms, score }
+
+    // ====== 要素 ======
+    const $round = document.getElementById('round');
+    const $target = document.getElementById('target');
+    const $current = document.getElementById('current');
+    const $timer = document.getElementById('timer');
+    const $status = document.getElementById('status');
+    const $board = document.getElementById('board');
+    const $log = document.getElementById('log');
+    const $final = document.getElementById('final');
+    const $next = document.getElementById('nextBtn');
+    const $retry = document.getElementById('retryBtn');
+    const $clear = document.getElementById('clearBtn');
+
+    // ====== ユーティリティ ======
+    function fmtMS(ms){
+      const m = Math.floor(ms/60000).toString().padStart(2,'0');
+      const s = Math.floor((ms%60000)/1000).toString().padStart(2,'0');
+      const ms3 = Math.floor(ms%1000).toString().padStart(3,'0');
+      return `${m}:${s}.${ms3}`;
+    }
+    function sampleK(k, n){ // 0..n-1 から k 個ユニークサンプル
+      const idx = [...Array(n).keys()];
+      for(let i=idx.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [idx[i], idx[j]] = [idx[j], idx[i]];
+      }
+      return idx.slice(0,k);
+    }
+    function median(arr){
+      if(arr.length===0) return 0;
+      const a = [...arr].sort((x,y)=>x-y);
+      const mid = Math.floor(a.length/2);
+      if(a.length%2===1) return a[mid];
+      return (a[mid-1]+a[mid])/2;
+    }
+
+    // ====== タイマー ======
+    function startTimer(){
+      if(running) return;
+      running = true;
+      startTime = performance.now();
+      const tick = () => {
+        const ms = performance.now() - startTime;
+        $timer.textContent = fmtMS(ms);
+        rafId = requestAnimationFrame(tick);
+      };
+      rafId = requestAnimationFrame(tick);
+    }
+    function stopTimer(){
+      if(!running) return 0;
+      running = false;
+      cancelAnimationFrame(rafId);
+      const ms = performance.now() - startTime;
+      return ms;
+    }
+    function resetTimer(){
+      running = false; cancelAnimationFrame(rafId); $timer.textContent = '00:00.000';
+    }
+
+    // ====== 盤面 ======
+    function renderBoard(){
+      $board.innerHTML = '';
+      PRIMES.forEach((p, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'prime-btn';
+        btn.textContent = p;
+        btn.dataset.index = i;
+        btn.addEventListener('click', () => togglePrime(i, btn));
+        $board.appendChild(btn);
+      });
+    }
+
+    function setActive(i, on){
+      const btn = $board.querySelector(`button[data-index="${i}"]`);
+      if(!btn) return;
+      btn.classList.toggle('active', !!on);
+      if(on) active.add(i); else active.delete(i);
+      updateCurrent();
+    }
+
+    function togglePrime(i, btnEl){
+      // 1回目に押されたらタイマースタート（各ラウンド最初の操作時）
+      if(!running && startTime===0){ startTimer(); $status.textContent = '計測中… 目標ちょうどに合わせてください。'; }
+
+      const isOn = active.has(i);
+      setActive(i, !isOn);
+
+      // 正誤判定
+      const cur = getCurrent();
+      if(cur === target){
+        const ms = stopTimer();
+        const score = timeToScore(ms);
+        results.push({ round, ms, score });
+        $status.innerHTML = `<span class="correct">正解！</span> 所要 ${fmtMS(ms)} / スコア ${score}`;
+        disableBoard(true);
+        $next.disabled = false;
+        logLine(`R${round}: ✔ 成功  t=${fmtMS(ms)}  score=${score}  target=${target}`);
+        if(round === TOTAL_ROUNDS){
+          finishGame();
+        }
+      } else if (cur > target) {
+        $status.innerHTML = `<span class="over">目標超過中…</span> 現在値が大きすぎます。`;
+      } else {
+        $status.textContent = '計測中… 目標ちょうどに合わせてください。';
+      }
+    }
+
+    function getCurrent(){
+      let sum = 0; active.forEach(i => sum += PRIMES[i]); return sum;
+    }
+    function updateCurrent(){
+      $current.textContent = getCurrent();
+    }
+
+    function disableBoard(disabled){
+      $board.querySelectorAll('button').forEach(b => b.disabled = disabled);
+    }
+
+    function clearBoard(){
+      active.clear();
+      $board.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      updateCurrent();
+    }
+
+    // ====== ラウンド管理 ======
+    function newTarget(){
+      // 5〜8個の素数をランダム選択して目標を作る（同一ボタンは一度だけ使用）
+      const k = Math.floor(Math.random()*(MAX_USE - MIN_USE + 1)) + MIN_USE;
+      const idx = sampleK(k, PRIMES.length);
+      return idx.reduce((acc,i)=>acc+PRIMES[i],0);
+    }
+
+    function setupRound(){
+      $round.textContent = `${round} / ${TOTAL_ROUNDS}`;
+      target = newTarget();
+      $target.textContent = target;
+      clearBoard();
+      disableBoard(false);
+      startTime = 0; // 「未開始」を表す
+      resetTimer();
+      $status.textContent = (round === 1)
+        ? '1問目は、最初の数字ボタンを押した瞬間に計測開始します。'
+        : '最初にボタンを押すと計測開始。ちょうど目標値に合わせよう！';
+      $next.disabled = true;
+    }
+
+    function nextRound(){
+      if(round < TOTAL_ROUNDS){
+        round += 1; setupRound();
+      }
+    }
+
+    function retryRound(){
+      // 同じ目標値のまま初期化して再挑戦（記録は残さない）
+      clearBoard();
+      disableBoard(false);
+      startTime = 0; resetTimer();
+      $status.textContent = 'やり直し：最初にボタンを押すと計測開始。';
+      $next.disabled = true;
+    }
+
+    function finishGame(){
+      // 10問完了時に中央値スコアを表示
+      const scores = results.map(r=>r.score);
+      const med = median(scores);
+      $final.textContent = `最終得点（中央値）：${med}`;
+      logLine(`--- GAME END --- median=${med}, scores=[${scores.join(', ')}]`);
+    }
+
+    function logLine(text){
+      const p = document.createElement('div');
+      p.textContent = text;
+      $log.prepend(p);
+    }
+
+    // ====== イベント ======
+    $next.addEventListener('click', () => {
+      nextRound();
+    });
+    $retry.addEventListener('click', () => retryRound());
+    $clear.addEventListener('click', () => clearBoard());
+
+    // ====== 起動 ======
+    renderBoard();
+    setupRound();
+  </script>
+</body>
+</html>
