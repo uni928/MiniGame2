@@ -177,7 +177,7 @@
     // スコア計算: 5秒で100点、60秒で0点の線形（範囲外は丸め）
     function timeToScore(ms){
       const s = ms / 1000;
-      if (s <= 5) return 100;
+      //if (s <= 5) return 100;
       if (s >= 60) return 0;
       return Math.round(100 * (60 - s) / 55);
     }
@@ -394,3 +394,4 @@ function finishGame(){
 </body>
 
 </html>
+
