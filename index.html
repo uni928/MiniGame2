@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>素数を足して合計ちょうど当てゲーム</title>
   <style>
+    /* === スコアダイアログ === */
+    dialog#scoreDialog { border: none; border-radius: 16px; padding: 0; background: #0b122e; color: var(--text); width: min(560px, 90vw); box-shadow: 0 20px 80px #000c, inset 0 1px 0 #ffffff10; }
+    #scoreDialog::backdrop { background: rgba(0,0,0,.6); }
+    #scoreDialog .dlg-header { padding: 16px 20px; font-weight: 800; border-bottom: 1px solid #1f2937; font-size: 18px; }
+    #scoreDialog .dlg-body { padding: 16px 20px; max-height: 60vh; overflow: auto; }
+    #scoreDialog .dlg-footer { padding: 12px 20px; border-top: 1px solid #1f2937; display: flex; justify-content: flex-end; gap: 8px; }
+    #scoreDialog .score-list { font-variant-numeric: tabular-nums; line-height: 1.6; }
+    #scoreDialog button { appearance: none; border: 1px solid #1f2937; background: #052f33; color: var(--text); border-radius: 12px; padding: 10px 14px; font-weight: 700; cursor: pointer; }
     :root {
       --bg: #0f172a; /* slate-900 */
       --panel: #111827ee; /* gray-900 */
@@ -147,6 +155,18 @@
     </div>
   </div>
 
+  <dialog id="scoreDialog">
+    <div class="dlg-header">結果</div>
+    <div class="dlg-body">
+      <div class="score-list" id="scoreList"></div>
+      <div class="divider"></div>
+      <div style="font-weight:800; margin-top:8px;">最終得点（中央値）：<span id="scoreMedian">—</span></div>
+    </div>
+    <div class="dlg-footer">
+      <button id="dlgClose">閉じる</button>
+    </div>
+  </dialog>
+
   <script>
     // ====== 設定 ======
     const PRIMES = [5, 7, 11, 13, 17, 19, 23, 29, 31, 37];
@@ -180,6 +200,11 @@
     const $board = document.getElementById('board');
     const $log = document.getElementById('log');
     const $final = document.getElementById('final');
+    const $dlg = document.getElementById('scoreDialog');
+    const $scoreList = document.getElementById('scoreList');
+    const $scoreMedian = document.getElementById('scoreMedian');
+    const $dlgClose = document.getElementById('dlgClose');
+    if($dlgClose){ $dlgClose.addEventListener('click', ()=> $dlg.close()); }
     const $next = document.getElementById('nextBtn');
     const $retry = document.getElementById('retryBtn');
     const $clear = document.getElementById('clearBtn');
@@ -332,11 +357,20 @@
       $next.disabled = true;
     }
 
-    function finishGame(){
-      // 10問完了時に中央値スコアを表示
+function finishGame(){
+      // 10問完了時に中央値スコアを表示 + ダイアログ
       const scores = results.map(r=>r.score);
       const med = median(scores);
       $final.textContent = `最終得点（中央値）：${med}`;
+      // ダイアログ用リスト生成
+      const lines = results.map(r => {
+        return `R${r.round}: ${r.score} 点（${fmtMS(r.ms)}）`;
+      });
+      $scoreList.innerHTML = lines.map(t=>`<div>${t}</div>`).join('');
+      $scoreMedian.textContent = med;
+      if(typeof $dlg?.showModal === 'function'){
+        $dlg.showModal();
+      }
       logLine(`--- GAME END --- median=${med}, scores=[${scores.join(', ')}]`);
     }
 
@@ -358,4 +392,5 @@
     setupRound();
   </script>
 </body>
+
 </html>
